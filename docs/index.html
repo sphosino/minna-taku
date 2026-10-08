@@ -5,6 +5,17 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>みんなの〇択</title>
 <meta name="description" content="正解のない質問に答えて、みんながどれを選んだか見てみよう。お題は誰でも作れます。">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="みんなの〇択">
+<meta property="og:title" content="みんなの〇択">
+<meta property="og:description" content="正解のない質問に、みんなはどう答えた？ 答えると全員の割合が見られる。お題は誰でも作れます。">
+<meta property="og:url" content="https://sphosino.github.io/minna-taku/">
+<meta property="og:image" content="https://sphosino.github.io/minna-taku/ogp.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:locale" content="ja_JP">
+<meta name="twitter:card" content="summary_large_image">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Ccircle cx='32' cy='32' r='22' fill='none' stroke='%232f54eb' stroke-width='10'/%3E%3C/svg%3E">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=RocknRoll+One&family=Zen+Kaku+Gothic+New:wght@500;700;900&display=swap">
@@ -62,6 +73,11 @@ h1 em{font-style:normal;color:var(--accent)}
 .repbox b{flex:1 1 12em;min-width:0}
 .repbox button{font:inherit;font-weight:700;font-size:.82rem;padding:6px 12px;border-radius:999px;cursor:pointer;border:1px solid var(--line);background:var(--sheet);color:var(--ink)}
 .repbox .go{background:var(--warn);border-color:var(--warn);color:#fff}
+.share{display:flex;flex-wrap:wrap;gap:8px}
+.share a,.share button{font:inherit;font-size:.82rem;font-weight:700;display:inline-flex;align-items:center;gap:6px;padding:7px 14px;border-radius:999px;border:1px solid var(--line);background:var(--bg);color:var(--ink);text-decoration:none;cursor:pointer}
+.share .x{background:var(--ink);color:var(--bg);border-color:var(--ink)}
+.focus-head{display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap;font-size:.85rem;color:var(--soft)}
+.card.focus{border:2px solid var(--accent)}
 .linkbtn{font:inherit;font-size:.82rem;background:none;border:0;color:var(--soft);text-decoration:underline;cursor:pointer;padding:0}
 .empty{background:var(--sheet);border:2px dashed var(--line);border-radius:16px;padding:28px 20px;text-align:center;display:flex;flex-direction:column;gap:10px;align-items:center}
 .empty b{font-family:var(--display);font-weight:400;font-size:1.3rem}
@@ -141,7 +157,9 @@ const API="https://bhnkfafrnrddtkdkwvso.supabase.co/functions/v1/minna";
 
 const COLORS=["--c1","--c2","--c3","--c4","--c5","--c6"];
 const $=id=>document.getElementById(id);
-const st={questions:[],mine:{},sort:"todo",revealed:new Set()};
+const st={questions:[],mine:{},sort:"todo",revealed:new Set(),focus:new URLSearchParams(location.search).get("q")};
+const BASE=location.origin+location.pathname;
+const linkFor=id=>BASE+"?q="+encodeURIComponent(id);
 
 /* 匿名の投票者ID（ブラウザごと） */
 const voter=(()=>{const mk=()=>Array.from(crypto.getRandomValues(new Uint8Array(12)),b=>b.toString(16).padStart(2,"0")).join("");
@@ -176,6 +194,20 @@ function render(){
   const answered=st.questions.filter(q=>st.mine[q.id]!==undefined).length;
   $("count").textContent=st.questions.length?`${answered} / ${st.questions.length} 問に回答済み`:"";
   feed.innerHTML="";
+  const fq=st.focus&&st.questions.find(q=>q.id===st.focus);
+  if(st.focus&&st.questions.length&&!fq){st.focus=null;history.replaceState(null,"",BASE)}
+  if(fq){
+    const head=document.createElement("div");head.className="focus-head";
+    head.innerHTML='<span>シェアされたお題</span>';
+    const more=document.createElement("button");more.type="button";more.className="pill";more.textContent="ほかのお題も答える";
+    more.onclick=()=>{st.focus=null;history.replaceState(null,"",BASE);render();window.scrollTo({top:0})};
+    head.appendChild(more);feed.appendChild(head);
+    const c=card(fq,fq.counts.reduce((a,b)=>a+b,0));c.classList.add("focus");feed.appendChild(c);
+    if(st.mine[fq.id]===undefined)return;   // 答えるまではこの1問だけ
+    qs=qs.filter(x=>x.q.id!==fq.id);
+    const h=document.createElement("div");h.className="focus-head";h.innerHTML="<span>ほかのお題</span>";feed.appendChild(h);
+  }
+  if(!qs.length&&fq)return;
   if(!qs.length){
     feed.innerHTML=st.questions.length
       ?'<div class="empty"><b>ぜんぶ答えました</b><span class="sub">「新着」や「人気」で結果を見返せます。新しいお題を作るのもアリ。</span><button class="btn" type="button" id="goMake">お題をつくる</button></div>'
@@ -206,8 +238,27 @@ function card(q,n){
     const nt=document.createElement("div");nt.className="done-note";
     const tag=n&&q.counts[myPick]===max?(q.counts.filter(v=>v===max).length>1?"同率トップ":"多数派"):n?"少数派":"";
     nt.textContent=`${n}人が回答 ・ あなたは${tag}`;el.appendChild(nt);
+    el.appendChild(shareRow(q,myPick,n?Math.round(q.counts[myPick]/n*100):0,tag));
   }
   return el;
+}
+
+/* シェア */
+function shareRow(q,pick,pct,tag){
+  const url=linkFor(q.id);
+  const msg=`「${q.text}」\n私は「${q.choices[pick]}」で${tag||"一番乗り"}${tag?`（${pct}%）`:""}でした。あなたは？`;
+  const row=document.createElement("div");row.className="share";
+  const x=document.createElement("a");x.className="x";x.target="_blank";x.rel="noopener";
+  x.href="https://x.com/intent/post?text="+encodeURIComponent(msg)+"&url="+encodeURIComponent(url)+"&hashtags="+encodeURIComponent("みんなの〇択");
+  x.textContent="Xでシェア";row.appendChild(x);
+  if(navigator.share){
+    const sh=document.createElement("button");sh.type="button";sh.textContent="ほかのアプリで送る";
+    sh.onclick=()=>navigator.share({title:"みんなの〇択",text:msg,url}).catch(()=>{});row.appendChild(sh);
+  }
+  const cp=document.createElement("button");cp.type="button";cp.textContent="リンクをコピー";
+  cp.onclick=async()=>{try{await navigator.clipboard.writeText(url);cp.textContent="コピーしました"}catch(e){prompt("このリンクをコピーしてください",url)}setTimeout(()=>cp.textContent="リンクをコピー",2000)};
+  row.appendChild(cp);
+  return row;
 }
 
 /* 通報 */
@@ -286,6 +337,7 @@ $("form").addEventListener("submit",async e=>{
     if(!d.ok){mstatus("ng",d.reason||"この内容は載せられません。表現を変えてみてください。");return}
     mstatus("ok","投稿しました。自分でも答えてみよう。");
     $("qin").value="";$("qlen").textContent="0 / 80";opts=["",""];renderOpts();
+    st.focus=d.id;history.replaceState(null,"",linkFor(d.id));
     await load();setSort("new");setTimeout(()=>{tab("play");mstatus("","")},900);
   }catch(err){mstatus("ng","通信に失敗しました。もう一度送ってください。")}
   finally{btn.disabled=false}
