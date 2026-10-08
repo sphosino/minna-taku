@@ -12,7 +12,19 @@
 import { createClient } from "npm:@supabase/supabase-js@2.45.4";
 
 const env = (k, d = "") => Deno.env.get(k) ?? d;
-const db = createClient(env("SUPABASE_URL"), env("SUPABASE_SERVICE_ROLE_KEY"), {
+
+// サーバー用の鍵（古い形式・新しい形式のどちらでも拾う）
+function serverKey() {
+  const legacy = env("SUPABASE_SERVICE_ROLE_KEY");
+  if (legacy) return legacy;
+  try {
+    const keys = JSON.parse(env("SUPABASE_SECRET_KEYS", "{}"));
+    const first = keys.default ?? Object.values(keys)[0];
+    if (first) return first;
+  } catch { /* 形式が違えば下へ */ }
+  return env("SUPABASE_SECRET_KEY");
+}
+const db = createClient(env("SUPABASE_URL"), serverKey(), {
   auth: { persistSession: false },
 });
 
