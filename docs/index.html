@@ -55,6 +55,13 @@ h1 em{font-style:normal;color:var(--accent)}
 .ch.mine .fill{opacity:.28}
 .ch .you{font-size:.72rem;font-weight:900;color:var(--c);letter-spacing:.06em;position:relative;flex:none}
 .done-note{font-size:.85rem;color:var(--soft);display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap}
+.qmeta .right{display:flex;gap:10px;align-items:center}
+.rep{font:inherit;font-size:.75rem;background:none;border:0;color:var(--soft);cursor:pointer;padding:2px 0;text-decoration:underline;text-underline-offset:2px}
+.rep:hover{color:var(--warn)}
+.repbox{display:flex;flex-wrap:wrap;gap:8px;align-items:center;font-size:.85rem;background:var(--bg);border-radius:10px;padding:10px 12px}
+.repbox b{flex:1 1 12em;min-width:0}
+.repbox button{font:inherit;font-weight:700;font-size:.82rem;padding:6px 12px;border-radius:999px;cursor:pointer;border:1px solid var(--line);background:var(--sheet);color:var(--ink)}
+.repbox .go{background:var(--warn);border-color:var(--warn);color:#fff}
 .linkbtn{font:inherit;font-size:.82rem;background:none;border:0;color:var(--soft);text-decoration:underline;cursor:pointer;padding:0}
 .empty{background:var(--sheet);border:2px dashed var(--line);border-radius:16px;padding:28px 20px;text-align:center;display:flex;flex-direction:column;gap:10px;align-items:center}
 .empty b{font-family:var(--display);font-weight:400;font-size:1.3rem}
@@ -180,8 +187,9 @@ function render(){
 function card(q,n){
   const el=document.createElement("article");el.className="card";
   const myPick=st.mine[q.id];const shown=myPick!==undefined;
-  el.innerHTML=`<div class="qmeta"><span>${q.choices.length}択</span><span>${ago(q.createdAt)}</span></div><p class="qtext"></p><div class="choices"></div>`;
+  el.innerHTML=`<div class="qmeta"><span>${q.choices.length}択</span><span class="right"><span>${ago(q.createdAt)}</span></span></div><p class="qtext"></p><div class="choices"></div>`;
   el.querySelector(".qtext").textContent=q.text;
+  addReport(el,q);
   const box=el.querySelector(".choices");const max=Math.max(...q.counts);
   q.choices.forEach((label,i)=>{
     const b=document.createElement("button");b.type="button";b.className="ch"+(shown&&myPick===i?" mine":"");
@@ -200,6 +208,36 @@ function card(q,n){
     nt.textContent=`${n}人が回答 ・ あなたは${tag}`;el.appendChild(nt);
   }
   return el;
+}
+
+/* 通報 */
+const reported=(()=>{try{return new Set(JSON.parse(localStorage.getItem("reported")||"[]"))}catch(e){return new Set()}})();
+function saveReported(){try{localStorage.setItem("reported",JSON.stringify([...reported].slice(-500)))}catch(e){}}
+function addReport(el,q){
+  const right=el.querySelector(".qmeta .right");
+  if(reported.has(q.id)){const t=document.createElement("span");t.textContent="通報済み";right.appendChild(t);return}
+  const b=document.createElement("button");b.type="button";b.className="rep";b.textContent="通報";
+  b.setAttribute("aria-label","このお題を通報する");
+  b.onclick=()=>{
+    if(el.querySelector(".repbox"))return;
+    const box=document.createElement("div");box.className="repbox";
+    box.innerHTML='<b>悪口・個人情報・不快な内容などを含むお題として通報しますか？</b><button type="button" class="go">通報する</button><button type="button" class="no">やめる</button>';
+    box.querySelector(".no").onclick=()=>box.remove();
+    box.querySelector(".go").onclick=async()=>{
+      box.querySelectorAll("button").forEach(x=>x.disabled=true);
+      try{
+        const r=await fetch(API+"/report",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({questionId:q.id})});
+        const d=await r.json().catch(()=>({}));
+        if(!r.ok)throw new Error(d.error||"通報できませんでした。");
+        reported.add(q.id);saveReported();
+        box.innerHTML="<b>通報しました。ありがとうございます。何件か通報が集まると自動で非表示になります。</b>";
+        b.replaceWith(Object.assign(document.createElement("span"),{textContent:"通報済み"}));
+        setTimeout(()=>box.remove(),4000);
+      }catch(e){box.querySelector("b").textContent=e.message||"通報できませんでした。";box.querySelectorAll("button").forEach(x=>x.disabled=false)}
+    };
+    el.querySelector(".qtext").after(box);
+  };
+  right.appendChild(b);
 }
 
 /* 投票：画面は先に更新し、集計はサーバーの返事で反映 */
@@ -254,7 +292,7 @@ $("form").addEventListener("submit",async e=>{
 });
 
 renderOpts();load();
-setInterval(()=>{if(!document.hidden&&!voting)load()},20000);
+setInterval(()=>{if(!document.hidden&&!voting&&!document.querySelector(".repbox"))load()},20000);
 document.addEventListener("visibilitychange",()=>{if(!document.hidden)load()});
 </script>
 </body>

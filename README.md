@@ -18,7 +18,8 @@
 - `GET  /questions?voter=<ID>` 公開中のお題・集計・自分の回答
 - `POST /questions` お題を投稿（AIチェックでOKのものだけ保存。同じ回線から1時間に5回まで）
 - `POST /vote` 投票（1人1票、あとから変更可。投票者はブラウザごとの匿名ID）
-- `DELETE /questions/<id>` 管理者がお題を非表示（ヘッダー `x-admin-key`）
+- `POST /report` お題を通報（同じ回線から1お題1回。3件で自動非表示）
+- `/admin/questions…` 管理画面用（ヘッダー `x-admin-key`）
 
 ## 公開のしかた
 
@@ -43,11 +44,20 @@
 3. **Settings → Pages** で Source を **Deploy from a branch**、Branch を `main` / `/docs` にして Save
 4. 数分後に `https://<ユーザー名>.github.io/minna-taku/` で公開される
 
-## お題を消す（管理者）
+## 管理画面
 
-```sh
-curl -X DELETE https://xxxx.supabase.co/functions/v1/minna/questions/<お題ID> -H "x-admin-key: <ADMIN_KEY>"
-```
+`https://sphosino.github.io/minna-taku/admin.html` を開き、Supabaseに設定した `ADMIN_KEY` で入る。
+
+- **要確認**：通報が来ているお題、通報で自動非表示になったお題
+- **非表示にする／表示に戻す**：戻すと通報数もリセットされる
+- **完全に削除**：票と通報もまとめて消える（2回押しで実行）
+- パスワードを10回まちがえると、その回線からは1時間入れなくなる
+
+自動非表示になる通報数は、Edge Functionのシークレット `REPORT_HIDE_THRESHOLD` で変えられる（初期値 3）。
+
+## アップデートのしかた
+
+データベースの変更があるときは `supabase/migrations/` の新しいSQLを SQL Editor で実行してから、`supabase/functions/minna/index.ts` を Edge Function のエディタ（Code タブ）に貼り直してデプロイする。
 
 ## AIチェックの基準を変える
 

@@ -4,9 +4,15 @@
 //   GET    /minna/questions?voter=<ID>   公開中のお題・集計・自分の回答
 //   POST   /minna/questions              お題を投稿（AIチェックでOKのものだけ保存）
 //   POST   /minna/vote                   投票（1人1票、あとから変更可）
-//   DELETE /minna/questions/<id>         管理者がお題を非表示（ヘッダー x-admin-key）
+//   POST   /minna/report                 お題を通報（同じ回線から1お題1回。一定数で自動非表示）
+//
+//   管理者用（ヘッダー x-admin-key）
+//   GET    /minna/admin/questions        すべてのお題（非表示・通報数つき）
+//   POST   /minna/admin/questions/<id>   {"hidden": true|false} 非表示にする／戻す
+//   DELETE /minna/admin/questions/<id>   完全に削除（票と通報も消える）
 //
 // 必要なシークレット：ANTHROPIC_API_KEY, ADMIN_KEY, HASH_SALT
+// 任意：REPORT_HIDE_THRESHOLD（自動非表示になる通報数。初期値 3）
 // （SUPABASE_URL と SUPABASE_SERVICE_ROLE_KEY は Supabase が自動で入れてくれる）
 
 import { createClient } from "npm:@supabase/supabase-js@2.45.4";
@@ -185,13 +191,115 @@ async function postVote(req) {
   return json({ ok: true });
 }
 
-async function hideQuestion(req, id) {
+async function postReport(req) {
+  let body;
+  try { body = await req.json(); } catch { return err("送信内容を読めませんでした。"); }
+  const { questionId } = body;
+  if (!isId(questionId)) return err("お題が正しくありません。");
+
+  const { data: q, error } = await db.from("questions").select("id,hidden").eq("id", questionId).maybeSingle();
+  if (error) throw error;
+  if (!q) return err("このお題は見つかりませんでした。", 404);
+
+  const hash = await ipHash(req);
+  if (!(await allow(hash, "report", 20, 3600000))) return err("通報が多すぎます。少し時間をおいてください。", 429);
+
+  // 同じ回線から同じお題への通報は1回だけ数える
+  const ins = await db.from("reports").upsert(
+    { question_id: questionId, ip_hash: hash, created_at: Date.now() },
+    { onConflict: "question_id,ip_hash", ignoreDuplicates: true },
+  );
+  if (ins.error) throw ins.error;
+
+  const { count, error: cErr } = await db.from("reports")
+    .select("*", { count: "exact", head: true }).eq("question_id", questionId);
+  if (cErr) throw cErr;
+  const threshold = Number(env("REPORT_HIDE_THRESHOLD", "3"));
+  if (!q.hidden && (count ?? 0) >= threshold) {
+    const up = await db.from("questions")
+      .update({ hidden: true, hidden_by: "reports", hidden_at: Date.now() }).eq("id", questionId);
+    if (up.error) throw up.error;
+  }
+  return json({ ok: true });
+}
+
+/* ---------- 管理者 ---------- */
+async function isAdmin(req) {
   const admin = env("ADMIN_KEY");
-  if (!admin || req.headers.get("x-admin-key") !== admin) return err("権限がありません。", 403);
+  const given = req.headers.get("x-admin-key") || "";
+  if (admin && given === admin) return true;
+  // 総当たり対策：失敗は1時間に10回まで
+  const hash = await ipHash(req);
+  await allow(hash, "admin-fail", 1000000, 3600000);
+  return false;
+}
+async function adminBlocked(req) {
+  const hash = await ipHash(req);
+  const { count } = await db.from("hits").select("*", { count: "exact", head: true })
+    .eq("ip_hash", hash).eq("action", "admin-fail").gt("ts", Date.now() - 3600000);
+  return (count ?? 0) >= 10;
+}
+
+async function adminList() {
+  const [qs, votes, reps] = await Promise.all([
+    db.from("questions").select("id,text,choices,created_at,hidden,hidden_by,hidden_at,ip_hash")
+      .order("created_at", { ascending: false }).limit(1000),
+    db.from("vote_counts").select("question_id,n"),
+    db.from("report_counts").select("question_id,n"),
+  ]);
+  for (const r of [qs, votes, reps]) if (r.error) throw r.error;
+  const v = {}, rp = {};
+  for (const t of votes.data) v[t.question_id] = (v[t.question_id] || 0) + t.n;
+  for (const t of reps.data) rp[t.question_id] = t.n;
+  return json({
+    questions: qs.data.map((q) => ({
+      id: q.id,
+      text: q.text,
+      choices: q.choices,
+      createdAt: Number(q.created_at),
+      hidden: q.hidden,
+      hiddenBy: q.hidden_by,
+      hiddenAt: q.hidden_at ? Number(q.hidden_at) : null,
+      poster: q.ip_hash ? q.ip_hash.slice(0, 6) : null,   // 同じ人の投稿か見分ける目印
+      votes: v[q.id] || 0,
+      reports: rp[q.id] || 0,
+    })),
+    threshold: Number(env("REPORT_HIDE_THRESHOLD", "3")),
+  });
+}
+
+async function adminSetHidden(req, id) {
   if (!isId(id)) return err("IDが正しくありません。");
-  const { error } = await db.from("questions").update({ hidden: true }).eq("id", id);
+  let body;
+  try { body = await req.json(); } catch { return err("送信内容を読めませんでした。"); }
+  const hidden = body.hidden === true;
+  const up = await db.from("questions").update(
+    hidden ? { hidden: true, hidden_by: "admin", hidden_at: Date.now() } : { hidden: false, hidden_by: null, hidden_at: null },
+  ).eq("id", id);
+  if (up.error) throw up.error;
+  // 戻すときは通報をリセット（すぐまた自動非表示にならないように）
+  if (!hidden) {
+    const del = await db.from("reports").delete().eq("question_id", id);
+    if (del.error) throw del.error;
+  }
+  return json({ ok: true });
+}
+
+async function adminDelete(id) {
+  if (!isId(id)) return err("IDが正しくありません。");
+  const { error } = await db.from("questions").delete().eq("id", id);
   if (error) throw error;
   return json({ ok: true });
+}
+
+async function admin(req, sub, id) {
+  if (await adminBlocked(req)) return err("失敗が多すぎます。1時間ほど待ってください。", 429);
+  if (!(await isAdmin(req))) return err("管理パスワードが違います。", 403);
+  if (sub !== "questions") return err("見つかりません。", 404);
+  if (!id && req.method === "GET") return await adminList();
+  if (id && req.method === "POST") return await adminSetHidden(req, id);
+  if (id && req.method === "DELETE") return await adminDelete(id);
+  return err("見つかりません。", 404);
 }
 
 Deno.serve(async (req) => {
@@ -199,12 +307,13 @@ Deno.serve(async (req) => {
   const url = new URL(req.url);
   const parts = url.pathname.split("/").filter(Boolean); // [..., "minna", "questions", "<id>"]
   const i = parts.indexOf("minna");
-  const [route, id] = i >= 0 ? parts.slice(i + 1) : parts.slice(1);
+  const [route, id, id2] = i >= 0 ? parts.slice(i + 1) : parts.slice(1);
   try {
     if (route === "questions" && !id && req.method === "GET") return await listQuestions(url);
     if (route === "questions" && !id && req.method === "POST") return await postQuestion(req);
-    if (route === "questions" && id && req.method === "DELETE") return await hideQuestion(req, id);
     if (route === "vote" && req.method === "POST") return await postVote(req);
+    if (route === "report" && req.method === "POST") return await postReport(req);
+    if (route === "admin") return await admin(req, id, id2);
     return err("見つかりません。", 404);
   } catch (e) {
     console.error(e);

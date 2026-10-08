@@ -37,6 +37,22 @@ alter table questions enable row level security;
 alter table votes     enable row level security;
 alter table hits      enable row level security;
 
+-- 通報
+alter table questions add column if not exists hidden_by text;      -- 'admin' か 'reports'
+alter table questions add column if not exists hidden_at bigint;
+
+create table if not exists reports (
+  question_id text   not null references questions(id) on delete cascade,
+  ip_hash     text   not null,
+  created_at  bigint not null,
+  primary key (question_id, ip_hash)        -- 同じ回線から同じお題は1回だけ
+);
+alter table reports enable row level security;
+
+create or replace view report_counts with (security_invoker = true) as
+  select question_id, count(*)::int as n
+  from reports group by question_id;
+
 -- 最初のお題
 insert into questions (id, text, choices, created_at) values
  ('seed01','無人島にひとつだけ持っていくなら？','["ナイフ","スマホ（圏外）","漫画全巻","寝袋"]',1791464400000),
