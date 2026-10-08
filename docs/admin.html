@@ -177,7 +177,7 @@ function row(q){
   return el;
 }
 
-$("login").addEventListener("submit",e=>{e.preventDefault();key=$("pw").value.trim();if(!key)return;try{sessionStorage.setItem("adminKey",key)}catch(e){}$("pw").value="";load()});
+$("login").addEventListener("submit",e=>{e.preventDefault();key=$("pw").value.trim();if(!key)return;if(/[^\x21-\x7e]/.test(key)){key="";msg("管理パスワードは半角の英数字と記号だけにしてください（日本語・全角・スペースは使えません）。");return}try{sessionStorage.setItem("adminKey",key)}catch(e){}$("pw").value="";load()});
 document.querySelectorAll("#filters .pill").forEach(b=>b.onclick=()=>{filter=b.dataset.f;document.querySelectorAll("#filters .pill").forEach(x=>x.setAttribute("aria-pressed",x===b));render()});
 $("reload").onclick=load;$("logout").onclick=logout;
 if(key)load();
