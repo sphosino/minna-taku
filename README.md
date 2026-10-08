@@ -4,44 +4,54 @@
 
 ## しくみ
 
-| 部分 | 使っているもの |
-|---|---|
-| ページ | `public/index.html`（1ファイル） |
-| API | Cloudflare Pages Functions（`functions/api/`） |
-| データ | Cloudflare D1（`schema.sql`） |
-| AIチェック | Anthropic API（`lib/moderate.js`） |
+| 部分 | 使っているもの | 料金 |
+|---|---|---|
+| ページ | GitHub Pages（`docs/index.html`） | 無料（リポジトリはPublic） |
+| データベース | Supabase（`supabase/schema.sql`） | 無料枠 |
+| API | Supabase Edge Functions（`supabase/functions/minna/index.ts`） | 無料枠 |
+| AIチェック | Anthropic API（Claude Haiku） | 使った分だけ。1件あたり約0.0001ドル |
 
-- `GET /api/questions?voter=<ID>` 公開中のお題、集計、自分の回答
-- `POST /api/questions` お題を投稿（AIチェックでOKのものだけ保存。1時間に5回まで）
-- `POST /api/vote` 投票（1人1票、あとから変更可。投票者はブラウザごとの匿名ID）
-- `DELETE /api/questions/<id>` 管理者がお題を非表示にする（ヘッダー `x-admin-key`）
+ブラウザはデータベースに直接さわらず、すべてEdge Function経由で読み書きします（テーブルはRLSで閉じてある）。
 
-## 公開のしかた（Cloudflare）
+- `GET  /questions?voter=<ID>` 公開中のお題・集計・自分の回答
+- `POST /questions` お題を投稿（AIチェックでOKのものだけ保存。同じ回線から1時間に5回まで）
+- `POST /vote` 投票（1人1票、あとから変更可。投票者はブラウザごとの匿名ID）
+- `DELETE /questions/<id>` 管理者がお題を非表示（ヘッダー `x-admin-key`）
 
-1. [Cloudflare](https://dash.cloudflare.com/sign-up) に無料登録する
-2. 左メニュー **Storage & databases → D1** で「Create」、名前は `minna-taku`
-3. 作ったデータベースの **Console** タブに `schema.sql` の中身を貼って実行する
-4. データベースIDをコピーし、`wrangler.toml` の `database_id` に貼ってコミットする
-5. **Workers & Pages → Create → Pages → Connect to Git** でこのリポジトリを選ぶ
-   - Build command：空のまま
-   - Build output directory：`public`
-6. デプロイ後、プロジェクトの **Settings → Variables and Secrets** に追加する
-   - `ANTHROPIC_API_KEY`（Secret）… [Anthropic Console](https://console.anthropic.com/) で発行したキー
-   - `ADMIN_KEY`（Secret）… 自分で決めた長いパスワード（お題を消すときに使う）
-   - `HASH_SALT`（Secret）… 適当な長い文字列（連投制限用）
-7. **Deployments** から再デプロイすると完成
+## 公開のしかた
+
+### 1. Supabase（データベースとAPI）
+
+1. [Supabase](https://supabase.com/dashboard) で **New project**（名前は `minna-taku` など、リージョンは Tokyo）
+2. 左メニュー **SQL Editor** を開き、`supabase/schema.sql` の中身をまるごと貼って **Run**
+3. 左メニュー **Edge Functions → Deploy a new function → Via Editor**
+   - 関数名：`minna`（この名前にしてください）
+   - `supabase/functions/minna/index.ts` の中身をまるごと貼って **Deploy**
+   - 関数の設定で **Enforce JWT verification（JWTの検証）をオフ**にする（サインインなしで使うため）
+4. **Edge Functions → Secrets** に3つ追加
+   - `ANTHROPIC_API_KEY` … [Anthropic Console](https://console.anthropic.com/) で発行したキー
+   - `ADMIN_KEY` … 自分で決めた長いパスワード（お題を消すときに使う）
+   - `HASH_SALT` … 適当な長い文字列（連投制限用）
+5. 関数のURL（`https://xxxx.supabase.co/functions/v1/minna`）をコピー
+
+### 2. ページ（GitHub Pages）
+
+1. `docs/index.html` の `const API=...` を、上でコピーしたURLに書き換えてコミット
+2. リポジトリの **Settings → General** の一番下で、公開範囲を **Public** にする
+3. **Settings → Pages** で Source を **Deploy from a branch**、Branch を `main` / `/docs` にして Save
+4. 数分後に `https://<ユーザー名>.github.io/minna-taku/` で公開される
 
 ## お題を消す（管理者）
 
 ```sh
-curl -X DELETE https://<あなたのサイト>/api/questions/<お題ID> -H "x-admin-key: <ADMIN_KEY>"
+curl -X DELETE https://xxxx.supabase.co/functions/v1/minna/questions/<お題ID> -H "x-admin-key: <ADMIN_KEY>"
 ```
 
-## 手元で動かす
+## AIチェックの基準を変える
 
-```sh
-npm i -g wrangler
-echo 'ANTHROPIC_API_KEY=sk-ant-...' > .dev.vars
-wrangler d1 execute minna-taku --local --file=schema.sql
-wrangler pages dev
-```
+`supabase/functions/minna/index.ts` の `RULES` の文章を書き換えて、もう一度デプロイするだけです。
+
+## 注意
+
+- Supabaseの無料プランは、しばらくアクセスがないとプロジェクトが一時停止します。ダッシュボードから再開できます。
+- AnthropicのAPIは前払いです。残高がなくなると投稿のAIチェックが失敗し、投稿できなくなります（閲覧と投票はそのまま使えます）。

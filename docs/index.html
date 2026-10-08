@@ -129,6 +129,9 @@ button:focus-visible,textarea:focus-visible,input:focus-visible{outline:3px soli
 </div>
 
 <script>
+/* ↓ Supabase の Edge Function の URL に書き換える（末尾の / なし） */
+const API="https://YOUR-PROJECT.supabase.co/functions/v1/minna";
+
 const COLORS=["--c1","--c2","--c3","--c4","--c5","--c6"];
 const $=id=>document.getElementById(id);
 const st={questions:[],mine:{},sort:"todo",revealed:new Set()};
@@ -150,7 +153,7 @@ function ago(ms){const s=(Date.now()-ms)/1000;if(s<60)return"たった今";if(s<
 /* 読み込み */
 async function load(){
   try{
-    const r=await fetch("/api/questions?voter="+voter);if(!r.ok)throw 0;
+    const r=await fetch(API+"/questions?voter="+voter);if(!r.ok)throw 0;
     const d=await r.json();st.questions=d.questions;
     if(!voting)st.mine={...d.mine,...pendingMine};
     notice("");render();
@@ -206,7 +209,7 @@ async function vote(q,i){
   if(prev!==undefined)q.counts[prev]--;q.counts[i]++;
   st.mine={...st.mine,[q.id]:i};pendingMine[q.id]=i;st.revealed.add(q.id);render();
   voting++;
-  try{const r=await fetch("/api/vote",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({questionId:q.id,choice:i,voter})});
+  try{const r=await fetch(API+"/vote",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({questionId:q.id,choice:i,voter})});
     const d=await r.json().catch(()=>({}));if(!r.ok)throw new Error(d.error||"投票を保存できませんでした。");delete pendingMine[q.id]}
   catch(e){notice(e.message||"投票を保存できませんでした。もう一度押してください。");q.counts[i]--;if(prev!==undefined)q.counts[prev]++;
     const m={...st.mine};if(prev===undefined)delete m[q.id];else m[q.id]=prev;st.mine=m;delete pendingMine[q.id];render()}
@@ -239,7 +242,7 @@ $("form").addEventListener("submit",async e=>{
   if(new Set(choices).size!==choices.length){mstatus("ng","同じ選択肢が重なっています。");return}
   const btn=$("send");btn.disabled=true;mstatus("","AIがチェック中…");
   try{
-    const r=await fetch("/api/questions",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({text,choices})});
+    const r=await fetch(API+"/questions",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({text,choices})});
     const d=await r.json().catch(()=>({}));
     if(!r.ok){mstatus("ng",d.error||"投稿できませんでした。もう一度送ってください。");return}
     if(!d.ok){mstatus("ng",d.reason||"この内容は載せられません。表現を変えてみてください。");return}
