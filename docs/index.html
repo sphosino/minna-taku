@@ -9,13 +9,28 @@
 <meta property="og:site_name" content="みんなの〇択">
 <meta property="og:title" content="みんなの〇択">
 <meta property="og:description" content="正解のない質問に、みんなはどう答えた？ 答えると全員の割合が見られる。お題は誰でも作れます。">
-<meta property="og:url" content="https://sphosino.github.io/minna-taku/">
-<meta property="og:image" content="https://sphosino.github.io/minna-taku/ogp.png">
+<meta property="og:url" content="https://mataasobo.com/minna-taku/">
+<meta property="og:image" content="https://mataasobo.com/minna-taku/ogp.png">
 <meta property="og:image:width" content="1200">
 <meta property="og:image:height" content="630">
 <meta property="og:locale" content="ja_JP">
 <meta name="twitter:card" content="summary_large_image">
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Ccircle cx='32' cy='32' r='22' fill='none' stroke='%232f54eb' stroke-width='10'/%3E%3C/svg%3E">
+<script>
+/* アクセス解析（Google アナリティクス）。mataasobo.com だけで動かし、自分の閲覧は数えない
+   自分の閲覧：一度 ?me を付けて開くと、このブラウザは数えなくなる（?me=off で戻す。mataasobo.com のどのページでも同じ） */
+window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments)}
+(function(){
+  let me=false;
+  try{const q=new URLSearchParams(location.search);
+    if(q.has('me')){const off=q.get('me')==='off';if(off)localStorage.removeItem('mataasobo-me');else localStorage.setItem('mataasobo-me','1');
+      alert(off?'このブラウザも数えるように戻しました':'このブラウザでの閲覧は、もう数えません')}
+    me=!!localStorage.getItem('mataasobo-me')}catch(e){}
+  if(me||location.hostname!=='mataasobo.com')return;
+  const s=document.createElement('script');s.async=true;s.src='https://www.googletagmanager.com/gtag/js?id=G-E7FT1414CV';document.head.appendChild(s);
+  gtag('js',new Date());gtag('config','G-E7FT1414CV');
+})();
+</script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=RocknRoll+One&family=Zen+Kaku+Gothic+New:wght@500;700;900&display=swap">
@@ -88,8 +103,8 @@ textarea,input[type=text]{font:inherit;font-weight:700;color:var(--ink);backgrou
 textarea{resize:vertical;min-height:4.2em;font-size:1.05rem}
 .opt{display:flex;gap:8px;align-items:center}
 .opt .dot{flex:none;width:12px;height:12px;border-radius:50%;background:var(--c)}
-.x{flex:none;width:38px;height:38px;border:2px solid var(--line);border-radius:10px;background:transparent;color:var(--soft);font:inherit;font-size:1rem;cursor:pointer}
-.x:disabled{opacity:.35;cursor:default}
+.opt .x{flex:none;width:38px;height:38px;border:2px solid var(--line);border-radius:10px;background:transparent;color:var(--soft);font:inherit;font-size:1rem;cursor:pointer} /* 選択肢を消すボタン（シェアの .x とは別） */
+.opt .x:disabled{opacity:.35;cursor:default}
 .btn{font-family:var(--display);font-weight:400;font-size:1.1rem;padding:14px;border:0;border-radius:12px;background:var(--accent);color:var(--on-accent);cursor:pointer}
 .btn:disabled{opacity:.5;cursor:default}
 .ghost{font:inherit;font-weight:700;padding:9px 12px;border:2px dashed var(--line);border-radius:10px;background:transparent;color:var(--soft);cursor:pointer}
@@ -100,6 +115,22 @@ textarea{resize:vertical;min-height:4.2em;font-size:1.05rem}
 .notice{font-size:.85rem;color:var(--soft);background:var(--sheet);border:1px solid var(--line);border-radius:12px;padding:10px 14px}
 button:focus-visible,textarea:focus-visible,input:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
 @media (prefers-reduced-motion:reduce){.ch .fill{transition:none}}
+.foot{text-align:center;font-size:.8rem;color:var(--soft);margin:8px 0 0}
+.foot a{color:inherit}
+/* 答えくらべ：自分の答えをリンクにして友達に送る。友達は同じお題に答えて、一致率が出る */
+.cmpbox{background:var(--sheet);border:2px solid var(--accent);border-radius:16px;padding:16px 18px;display:flex;flex-direction:column;gap:10px}
+.cmpbox h2{font-family:var(--display);font-weight:400;font-size:1.25rem;margin:0}
+.cmpbox p{margin:0;font-size:.9rem;color:var(--soft)}
+.cmprow{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.cmprow input{flex:1 1 10em;width:auto}
+.cmprow .btn{padding:10px 16px;font-size:1rem}
+.cmplink{font-size:.8rem;word-break:break-all;background:var(--bg);border-radius:10px;padding:8px 10px;color:var(--soft)}
+.ch .them{font-size:.72rem;font-weight:900;color:var(--ink);background:var(--bg);border-radius:999px;padding:1px 8px;position:relative;flex:none}
+.match{font-family:var(--display);font-weight:400;font-size:1.1rem;text-align:center;margin:0}
+.match.same{color:var(--c3)}.match.diff{color:var(--c2)}
+.rate{font-family:var(--display);font-weight:400;font-size:clamp(3rem,16vw,4.5rem);line-height:1;text-align:center;margin:4px 0;color:var(--accent);font-variant-numeric:tabular-nums}
+.difflist{margin:0;padding-left:1.2em;font-size:.88rem;display:grid;gap:6px}
+.difflist b{display:block}
 </style>
 </head>
 <body>
@@ -149,6 +180,7 @@ button:focus-visible,textarea:focus-visible,input:focus-visible{outline:3px soli
       </form>
     </div>
   </section>
+  <p class="foot"><a href="/">また遊ぼ</a>・<a href="/privacy.html">プライバシーポリシー</a></p>
 </div>
 
 <script>
@@ -159,6 +191,14 @@ const COLORS=["--c1","--c2","--c3","--c4","--c5","--c6"];
 const $=id=>document.getElementById(id);
 const st={questions:[],mine:{},sort:"todo",revealed:new Set(),focus:new URLSearchParams(location.search).get("q")};
 const BASE=location.origin+location.pathname;
+// 答えくらべ：リンクに「名前」と「お題ID.選んだ番号」を入れて送る（サーバーには何も足さない）
+//   ?cn=けんじ&ca=fd8c73a6ba124536.1~5023b235ec2e4a8d.0~…
+const CMP_MAX=10,CMP_MIN=5;
+st.cmp=(()=>{const q=new URLSearchParams(location.search),a=q.get("ca");if(!a)return null;
+  const list=a.split("~").map(x=>{const k=x.lastIndexOf(".");return[x.slice(0,k),+x.slice(k+1)]}).filter(([id,c])=>/^[A-Za-z0-9_-]{4,64}$/.test(id)&&Number.isInteger(c)&&c>=0).slice(0,CMP_MAX);
+  return list.length?{name:(q.get("cn")||"ともだち").slice(0,12),list,seen:new Set(),fresh:new Set(),opened:false}:null})();
+const myName=()=>{try{return localStorage.getItem("mataasobo-name")||""}catch(e){return""}};
+const saveName=v=>{try{localStorage.setItem("mataasobo-name",v)}catch(e){}};
 const linkFor=id=>BASE+"?q="+encodeURIComponent(id);
 
 /* 匿名の投票者ID（ブラウザごと） */
@@ -187,6 +227,8 @@ async function load(){
 
 function render(){
   const feed=$("feed");
+  document.querySelector("#v-play .bar-row").style.display=st.cmp?"none":""; // 答えくらべの間は、並べかえを隠す
+  if(st.cmp){renderCmp(feed);return}
   let qs=st.questions.map(q=>({q,n:q.counts.reduce((a,b)=>a+b,0)}));
   if(st.sort==="todo")qs=qs.filter(x=>st.mine[x.q.id]===undefined||st.revealed.has(x.q.id));
   if(st.sort==="hot")qs.sort((a,b)=>b.n-a.n||b.q.createdAt-a.q.createdAt);
@@ -208,15 +250,16 @@ function render(){
     const h=document.createElement("div");h.className="focus-head";h.innerHTML="<span>ほかのお題</span>";feed.appendChild(h);
   }
   if(!qs.length&&fq)return;
+  if(!fq)feed.appendChild(cmpMaker(answered));
   if(!qs.length){
     feed.innerHTML=st.questions.length
       ?'<div class="empty"><b>ぜんぶ答えました</b><span class="sub">「新着」や「人気」で結果を見返せます。新しいお題を作るのもアリ。</span><button class="btn" type="button" id="goMake">お題をつくる</button></div>'
       :'<div class="empty"><b>まだお題がありません</b><span class="sub">最初のお題を作ってみよう。</span><button class="btn" type="button" id="goMake">お題をつくる</button></div>';
-    $("goMake").onclick=()=>tab("make");return;
+    $("goMake").onclick=()=>tab("make");feed.prepend(cmpMaker(answered));return;
   }
   for(const x of qs)feed.appendChild(card(x.q,x.n));
 }
-function card(q,n){
+function card(q,n,other){ // other：答えくらべの相手 {name, pick}（自分が答えてから見せる）
   const el=document.createElement("article");el.className="card";
   const myPick=st.mine[q.id];const shown=myPick!==undefined;
   el.innerHTML=`<div class="qmeta"><span>${q.choices.length}択</span><span class="right"><span>${ago(q.createdAt)}</span></span></div><p class="qtext"></p><div class="choices"></div>`;
@@ -227,7 +270,8 @@ function card(q,n){
     const b=document.createElement("button");b.type="button";b.className="ch"+(shown&&myPick===i?" mine":"");
     b.style.setProperty("--c",`var(${COLORS[i%6]})`);
     const pct=n?Math.round(q.counts[i]/n*100):0;
-    b.innerHTML=`<span class="fill"></span><span class="dot"></span><span class="lbl"></span>${shown&&myPick===i?'<span class="you">あなた</span>':""}${shown?`<span class="pct">${pct}%</span>`:""}`;
+    b.innerHTML=`<span class="fill"></span><span class="dot"></span><span class="lbl"></span>${shown&&myPick===i?'<span class="you">あなた</span>':""}${shown&&other&&other.pick===i?`<span class="them"></span>`:""}${shown?`<span class="pct">${pct}%</span>`:""}`;
+    if(shown&&other&&other.pick===i)b.querySelector(".them").textContent=other.name;
     b.querySelector(".lbl").textContent=label;
     if(shown)requestAnimationFrame(()=>b.querySelector(".fill").style.width=pct+"%");
     b.setAttribute("aria-label",shown?`${label}、${pct}%`:label);
@@ -238,10 +282,87 @@ function card(q,n){
     const nt=document.createElement("div");nt.className="done-note";
     const tag=n&&q.counts[myPick]===max?(q.counts.filter(v=>v===max).length>1?"同率トップ":"多数派"):n?"少数派":"";
     nt.textContent=`${n}人が回答 ・ あなたは${tag}`;el.appendChild(nt);
-    el.appendChild(shareRow(q,myPick,n?Math.round(q.counts[myPick]/n*100):0,tag));
+    if(!other)el.appendChild(shareRow(q,myPick,n?Math.round(q.counts[myPick]/n*100):0,tag));
   }
   return el;
 }
+
+/* 答えくらべ */
+// ふつうの画面のいちばん上：自分の答えからリンクをつくる箱
+function cmpMaker(answered){
+  const box=document.createElement("section");box.className="cmpbox";box.setAttribute("aria-label","友達と答えくらべ");
+  const need=Math.max(0,CMP_MIN-answered);
+  box.innerHTML=`<h2>🤝 友達と答えくらべ</h2><p>答えたお題から${CMP_MAX}問をリンクにして友達に送ると、友達が同じお題に答えて「ふたりの一致率」が出ます。</p>`
+    +(need?`<p><b>あと${need}問</b>答えるとつくれます。</p>`
+      :`<div class="cmprow"><input type="text" id="cmpName" maxlength="12" placeholder="あなたの名前" aria-label="あなたの名前"><button class="btn" type="button" id="cmpMake">リンクをつくる</button></div><div id="cmpOut"></div>`);
+  if(!need){
+    const inp=box.querySelector("#cmpName");inp.value=myName();
+    box.querySelector("#cmpMake").onclick=()=>{const name=inp.value.trim()||"ともだち";saveName(name);showCmpLink(box.querySelector("#cmpOut"),name)};
+  }
+  return box;
+}
+function cmpLinkFor(name){
+  // 答えたお題のうち、答えた人が多いものから（割合が見ごたえある）
+  const qs=st.questions.filter(q=>st.mine[q.id]!==undefined).sort((a,b)=>b.counts.reduce((x,y)=>x+y,0)-a.counts.reduce((x,y)=>x+y,0)||b.createdAt-a.createdAt).slice(0,CMP_MAX);
+  return{url:BASE+"?cn="+encodeURIComponent(name)+"&ca="+qs.map(q=>q.id+"."+st.mine[q.id]).join("~"),n:qs.length};
+}
+function showCmpLink(out,name){
+  const {url,n}=cmpLinkFor(name);gtag("event","cmp_create",{n});
+  const msg=`「みんなの〇択」で答えくらべしよう！ ${n}問、私と何問同じになるかな？`;
+  out.innerHTML=`<p class="cmplink"></p><div class="share"></div>`;out.querySelector(".cmplink").textContent=url;
+  const row=out.querySelector(".share");
+  const line=document.createElement("a");line.href="https://line.me/R/share?text="+encodeURIComponent(msg+" "+url);line.target="_blank";line.rel="noopener";line.textContent="LINEで送る";row.appendChild(line);
+  const x=document.createElement("a");x.className="x";x.target="_blank";x.rel="noopener";x.href="https://x.com/intent/post?text="+encodeURIComponent(msg)+"&url="+encodeURIComponent(url)+"&hashtags="+encodeURIComponent("みんなの〇択");x.textContent="Xで送る";row.appendChild(x);
+  if(navigator.share){const sh=document.createElement("button");sh.type="button";sh.textContent="ほかのアプリで送る";sh.onclick=()=>navigator.share({title:"みんなの〇択",text:msg,url}).catch(()=>{});row.appendChild(sh)}
+  const cp=document.createElement("button");cp.type="button";cp.textContent="リンクをコピー";
+  cp.onclick=async()=>{try{await navigator.clipboard.writeText(url);cp.textContent="コピーしました"}catch(e){prompt("このリンクをコピーしてください",url)}setTimeout(()=>cp.textContent="リンクをコピー",2000)};row.appendChild(cp);
+}
+// 答えくらべのリンクを開いた人：同じお題に1問ずつ答え、答えるたびに相手の答えと一致したかを見せる。最後に一致率
+function renderCmp(feed){
+  const c=st.cmp;feed.innerHTML="";
+  if(!st.questions.length){feed.innerHTML='<div class="empty"><b>読み込み中…</b></div>';return}
+  const items=c.list.map(([id,pick])=>({q:st.questions.find(x=>x.id===id),pick})).filter(x=>x.q&&x.pick<x.q.choices.length);
+  if(!c.opened){c.opened=true;gtag("event","cmp_open",{n:items.length});
+    items.forEach(x=>{if(st.mine[x.q.id]!==undefined&&!c.fresh.has(x.q.id))c.seen.add(x.q.id)})} // 前に答えたお題は、その答えでくらべる
+  const head=document.createElement("div");head.className="cmpbox";
+  head.innerHTML=`<h2></h2><p>${Math.min(c.seen.size,items.length)} / ${items.length} 問　答えるたびに、相手と同じだったかがわかります。</p>`;
+  head.querySelector("h2").textContent=`🤝 ${c.name}さんと答えくらべ`;feed.appendChild(head);
+  if(!items.length){feed.insertAdjacentHTML("beforeend",'<div class="empty"><b>お題が見つかりませんでした</b><span class="sub">お題が消されたのかもしれません。</span></div>');feed.appendChild(exitBtn());return}
+  const cur=items.find(x=>!c.seen.has(x.q.id));
+  if(cur){
+    const n=cur.q.counts.reduce((a,b)=>a+b,0),answered=st.mine[cur.q.id]!==undefined;
+    const el=card(cur.q,n,answered?{name:c.name,pick:cur.pick}:null);feed.appendChild(el);
+    if(answered){
+      const same=st.mine[cur.q.id]===cur.pick;
+      const m=document.createElement("p");m.className="match "+(same?"same":"diff");m.textContent=same?`🎉 ${c.name}さんと同じ！`:`${c.name}さんは「${cur.q.choices[cur.pick]}」でした`;
+      el.insertBefore(m,el.querySelector(".choices"));
+      const nx=document.createElement("button");nx.className="btn";nx.type="button";nx.textContent=items.filter(x=>!c.seen.has(x.q.id)).length>1?"次のお題へ":"結果を見る";
+      nx.onclick=()=>{c.seen.add(cur.q.id);render();window.scrollTo({top:0})};el.appendChild(nx);
+    }
+    return;
+  }
+  // 結果
+  const same=items.filter(x=>st.mine[x.q.id]===x.pick),rate=Math.round(same.length/items.length*100);
+  if(!c.doneSent){c.doneSent=true;gtag("event","cmp_done",{rate,n:items.length})}
+  const word=rate>=90?"以心伝心！":rate>=70?"気が合うふたり":rate>=40?"ほどよく似てる":"正反対だからおもしろい";
+  const res=document.createElement("article");res.className="card";
+  res.innerHTML=`<p class="match">${c.name.replace(/[<>&"]/g,"")}さんとの一致率</p><p class="rate">${rate}%</p><p class="match">${word}</p><p class="sub" style="text-align:center">${items.length}問中 ${same.length}問が同じでした</p>`;
+  const diff=items.filter(x=>st.mine[x.q.id]!==x.pick);
+  if(diff.length){const ul=document.createElement("ul");ul.className="difflist";
+    for(const x of diff){const li=document.createElement("li");const b=document.createElement("b");b.textContent=x.q.text;li.appendChild(b);
+      li.appendChild(document.createTextNode(`あなた：${x.q.choices[st.mine[x.q.id]]}　／　${c.name}：${x.q.choices[x.pick]}`));ul.appendChild(li)}
+    const h=document.createElement("p");h.className="f";h.textContent="ちがったお題";res.appendChild(h);res.appendChild(ul)}
+  const row=document.createElement("div");row.className="share";
+  const x=document.createElement("a");x.className="x";x.target="_blank";x.rel="noopener";
+  x.href="https://x.com/intent/post?text="+encodeURIComponent(`${c.name}さんとの答えくらべ、一致率${rate}%（${word}）でした！`)+"&url="+encodeURIComponent(BASE)+"&hashtags="+encodeURIComponent("みんなの〇択");
+  x.textContent="結果をXでシェア";row.appendChild(x);res.appendChild(row);
+  feed.appendChild(res);
+  // 自分のリンクをつくって送り返す
+  const back=cmpMaker(st.questions.filter(q=>st.mine[q.id]!==undefined).length);back.querySelector("h2").textContent="🤝 こんどはあなたのリンクを送ろう";feed.appendChild(back);
+  feed.appendChild(exitBtn());
+}
+function exitBtn(){const b=document.createElement("button");b.type="button";b.className="pill";b.textContent="ほかのお題も答える";
+  b.onclick=()=>{st.cmp=null;history.replaceState(null,"",BASE);render();window.scrollTo({top:0})};return b}
 
 /* シェア */
 function shareRow(q,pick,pct,tag){
@@ -296,7 +417,7 @@ let voting=0;const pendingMine={};
 async function vote(q,i){
   const prev=st.mine[q.id];if(prev===i)return;
   if(prev!==undefined)q.counts[prev]--;q.counts[i]++;
-  st.mine={...st.mine,[q.id]:i};pendingMine[q.id]=i;st.revealed.add(q.id);render();
+  st.mine={...st.mine,[q.id]:i};pendingMine[q.id]=i;st.revealed.add(q.id);if(st.cmp)st.cmp.fresh.add(q.id);gtag("event","vote",{cmp:!!st.cmp});render();
   voting++;
   try{const r=await fetch(API+"/vote",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({questionId:q.id,choice:i,voter})});
     const d=await r.json().catch(()=>({}));if(!r.ok)throw new Error(d.error||"投票を保存できませんでした。");delete pendingMine[q.id]}
