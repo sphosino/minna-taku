@@ -131,6 +131,11 @@ button:focus-visible,textarea:focus-visible,input:focus-visible{outline:3px soli
 .rate{font-family:var(--display);font-weight:400;font-size:clamp(3rem,16vw,4.5rem);line-height:1;text-align:center;margin:4px 0;color:var(--accent);font-variant-numeric:tabular-nums}
 .difflist{margin:0;padding-left:1.2em;font-size:.88rem;display:grid;gap:6px}
 .difflist b{display:block}
+/* タグ：一覧のしぼりこみと、お題のカード */
+.tags{display:flex;gap:6px;flex-wrap:wrap}
+.tags .pill{font-size:.8rem;padding:4px 11px}
+.qtag{font-size:.72rem;font-weight:700;color:var(--accent);background:var(--bg);border-radius:999px;padding:1px 8px}
+.qmeta .left{display:flex;gap:6px;align-items:center;flex-wrap:wrap}
 </style>
 </head>
 <body>
@@ -156,6 +161,7 @@ button:focus-visible,textarea:focus-visible,input:focus-visible{outline:3px soli
       </div>
       <span class="count" id="count"></span>
     </div>
+    <div class="tags" id="tagbar" role="group" aria-label="タグでしぼりこむ"></div>
     <div class="feed" id="feed">
       <div class="empty"><b>読み込み中…</b></div>
     </div>
@@ -194,9 +200,13 @@ const BASE=location.origin+location.pathname;
 // 答えくらべ：リンクに「名前」と「お題ID.選んだ番号」を入れて送る（サーバーには何も足さない）
 //   ?cn=けんじ&ca=fd8c73a6ba124536.1~5023b235ec2e4a8d.0~…
 const CMP_MAX=10,CMP_MIN=5;
+const TAGS=["食べもの","恋愛","人づきあい","もしも","暮らし","あそび"]; // サーバーの TAGS と同じ
+st.tag=null; // 一覧のしぼりこみ（null はすべて）
+const hasTag=(q,t)=>!t||(q.tags||[]).includes(t);
 st.cmp=(()=>{const q=new URLSearchParams(location.search),a=q.get("ca");if(!a)return null;
   const list=a.split("~").map(x=>{const k=x.lastIndexOf(".");return[x.slice(0,k),+x.slice(k+1)]}).filter(([id,c])=>/^[A-Za-z0-9_-]{4,64}$/.test(id)&&Number.isInteger(c)&&c>=0).slice(0,CMP_MAX);
-  return list.length?{name:(q.get("cn")||"ともだち").slice(0,12),list,seen:new Set(),fresh:new Set(),opened:false}:null})();
+  const tag=TAGS.includes(q.get("ct"))?q.get("ct"):null;
+  return list.length?{name:(q.get("cn")||"ともだち").slice(0,12),tag,list,seen:new Set(),fresh:new Set(),opened:false}:null})();
 const myName=()=>{try{return localStorage.getItem("mataasobo-name")||""}catch(e){return""}};
 const saveName=v=>{try{localStorage.setItem("mataasobo-name",v)}catch(e){}};
 const linkFor=id=>BASE+"?q="+encodeURIComponent(id);
@@ -227,9 +237,10 @@ async function load(){
 
 function render(){
   const feed=$("feed");
-  document.querySelector("#v-play .bar-row").style.display=st.cmp?"none":""; // 答えくらべの間は、並べかえを隠す
+  document.querySelector("#v-play .bar-row").style.display=$("tagbar").style.display=st.cmp?"none":""; // 答えくらべの間は、並べかえとタグを隠す
   if(st.cmp){renderCmp(feed);return}
-  let qs=st.questions.map(q=>({q,n:q.counts.reduce((a,b)=>a+b,0)}));
+  renderTagbar();
+  let qs=st.questions.filter(q=>hasTag(q,st.tag)).map(q=>({q,n:q.counts.reduce((a,b)=>a+b,0)}));
   if(st.sort==="todo")qs=qs.filter(x=>st.mine[x.q.id]===undefined||st.revealed.has(x.q.id));
   if(st.sort==="hot")qs.sort((a,b)=>b.n-a.n||b.q.createdAt-a.q.createdAt);
   else qs.sort((a,b)=>b.q.createdAt-a.q.createdAt);
@@ -250,19 +261,19 @@ function render(){
     const h=document.createElement("div");h.className="focus-head";h.innerHTML="<span>ほかのお題</span>";feed.appendChild(h);
   }
   if(!qs.length&&fq)return;
-  if(!fq)feed.appendChild(cmpMaker(answered));
+  if(!fq)feed.appendChild(cmpMaker());
   if(!qs.length){
     feed.innerHTML=st.questions.length
       ?'<div class="empty"><b>ぜんぶ答えました</b><span class="sub">「新着」や「人気」で結果を見返せます。新しいお題を作るのもアリ。</span><button class="btn" type="button" id="goMake">お題をつくる</button></div>'
       :'<div class="empty"><b>まだお題がありません</b><span class="sub">最初のお題を作ってみよう。</span><button class="btn" type="button" id="goMake">お題をつくる</button></div>';
-    $("goMake").onclick=()=>tab("make");feed.prepend(cmpMaker(answered));return;
+    $("goMake").onclick=()=>tab("make");feed.prepend(cmpMaker());return;
   }
   for(const x of qs)feed.appendChild(card(x.q,x.n));
 }
 function card(q,n,other){ // other：答えくらべの相手 {name, pick}（自分が答えてから見せる）
   const el=document.createElement("article");el.className="card";
   const myPick=st.mine[q.id];const shown=myPick!==undefined;
-  el.innerHTML=`<div class="qmeta"><span>${q.choices.length}択</span><span class="right"><span>${ago(q.createdAt)}</span></span></div><p class="qtext"></p><div class="choices"></div>`;
+  el.innerHTML=`<div class="qmeta"><span class="left"><span>${q.choices.length}択</span>${(q.tags||[]).filter(t=>TAGS.includes(t)).map(t=>`<span class="qtag">#${t}</span>`).join("")}</span><span class="right"><span>${ago(q.createdAt)}</span></span></div><p class="qtext"></p><div class="choices"></div>`;
   el.querySelector(".qtext").textContent=q.text;
   addReport(el,q);
   const box=el.querySelector(".choices");const max=Math.max(...q.counts);
@@ -287,14 +298,29 @@ function card(q,n,other){ // other：答えくらべの相手 {name, pick}（自
   return el;
 }
 
+function renderTagbar(){
+  const bar=$("tagbar");
+  const key=st.tag+"|"+st.questions.length;if(bar.dataset.key===key)return;bar.dataset.key=key;
+  bar.innerHTML="";
+  for(const t of [null,...TAGS]){const b=document.createElement("button");b.type="button";b.className="pill";
+    const n=t?st.questions.filter(q=>hasTag(q,t)).length:st.questions.length;
+    b.textContent=(t?"#"+t:"すべて")+(st.questions.length?` ${n}`:"");b.setAttribute("aria-pressed",st.tag===t);
+    b.onclick=()=>{st.tag=t;render()};bar.appendChild(b)}
+}
+
 /* 答えくらべ */
 // ふつうの画面のいちばん上：自分の答えからリンクをつくる箱
-function cmpMaker(answered){
+let cmpTag=null; // 答えくらべのテーマ（null はぜんぶから）
+function cmpMaker(){
   const box=document.createElement("section");box.className="cmpbox";box.setAttribute("aria-label","友達と答えくらべ");
-  const need=Math.max(0,CMP_MIN-answered);
-  box.innerHTML=`<h2>🤝 友達と答えくらべ</h2><p>答えたお題から${CMP_MAX}問をリンクにして友達に送ると、友達が同じお題に答えて「ふたりの一致率」が出ます。</p>`
-    +(need?`<p><b>あと${need}問</b>答えるとつくれます。</p>`
+  const answeredIn=t=>st.questions.filter(q=>st.mine[q.id]!==undefined&&hasTag(q,t)).length;
+  const need=Math.max(0,CMP_MIN-answeredIn(cmpTag));
+  box.innerHTML=`<h2>🤝 友達と答えくらべ</h2><p>答えたお題から${CMP_MAX}問をリンクにして友達に送ると、友達が同じお題に答えて「ふたりの一致率」が出ます。</p>
+    <div class="tags" role="group" aria-label="答えくらべのテーマ">${[null,...TAGS].map(t=>`<button type="button" class="pill" data-t="${t||""}" aria-pressed="${cmpTag===t}">${t?t+"編":"ぜんぶから"}</button>`).join("")}</div>`
+    +(need?`<p><b>${cmpTag?`#${cmpTag} のお題に`:""}あと${need}問</b>答えるとつくれます。${cmpTag?' <button type="button" class="linkbtn" id="cmpGo">そのお題を出す</button>':""}</p>`
       :`<div class="cmprow"><input type="text" id="cmpName" maxlength="12" placeholder="あなたの名前" aria-label="あなたの名前"><button class="btn" type="button" id="cmpMake">リンクをつくる</button></div><div id="cmpOut"></div>`);
+  box.querySelectorAll("[data-t]").forEach(b=>b.onclick=()=>{cmpTag=b.dataset.t||null;render()});
+  const go=box.querySelector("#cmpGo");if(go)go.onclick=()=>{st.tag=cmpTag;setSort("todo")};
   if(!need){
     const inp=box.querySelector("#cmpName");inp.value=myName();
     box.querySelector("#cmpMake").onclick=()=>{const name=inp.value.trim()||"ともだち";saveName(name);showCmpLink(box.querySelector("#cmpOut"),name)};
@@ -303,12 +329,12 @@ function cmpMaker(answered){
 }
 function cmpLinkFor(name){
   // 答えたお題のうち、答えた人が多いものから（割合が見ごたえある）
-  const qs=st.questions.filter(q=>st.mine[q.id]!==undefined).sort((a,b)=>b.counts.reduce((x,y)=>x+y,0)-a.counts.reduce((x,y)=>x+y,0)||b.createdAt-a.createdAt).slice(0,CMP_MAX);
-  return{url:BASE+"?cn="+encodeURIComponent(name)+"&ca="+qs.map(q=>q.id+"."+st.mine[q.id]).join("~"),n:qs.length};
+  const qs=st.questions.filter(q=>st.mine[q.id]!==undefined&&hasTag(q,cmpTag)).sort((a,b)=>b.counts.reduce((x,y)=>x+y,0)-a.counts.reduce((x,y)=>x+y,0)||b.createdAt-a.createdAt).slice(0,CMP_MAX);
+  return{url:BASE+"?cn="+encodeURIComponent(name)+(cmpTag?"&ct="+encodeURIComponent(cmpTag):"")+"&ca="+qs.map(q=>q.id+"."+st.mine[q.id]).join("~"),n:qs.length};
 }
 function showCmpLink(out,name){
-  const {url,n}=cmpLinkFor(name);gtag("event","cmp_create",{n});
-  const msg=`「みんなの〇択」で答えくらべしよう！ ${n}問、私と何問同じになるかな？`;
+  const {url,n}=cmpLinkFor(name);gtag("event","cmp_create",{n,tag:cmpTag||"all"});
+  const msg=`「みんなの〇択」で答えくらべしよう！${cmpTag?`（${cmpTag}編）`:""} ${n}問、私と何問同じになるかな？`;
   out.innerHTML=`<p class="cmplink"></p><div class="share"></div>`;out.querySelector(".cmplink").textContent=url;
   const row=out.querySelector(".share");
   const line=document.createElement("a");line.href="https://line.me/R/share?text="+encodeURIComponent(msg+" "+url);line.target="_blank";line.rel="noopener";line.textContent="LINEで送る";row.appendChild(line);
@@ -326,7 +352,7 @@ function renderCmp(feed){
     items.forEach(x=>{if(st.mine[x.q.id]!==undefined&&!c.fresh.has(x.q.id))c.seen.add(x.q.id)})} // 前に答えたお題は、その答えでくらべる
   const head=document.createElement("div");head.className="cmpbox";
   head.innerHTML=`<h2></h2><p>${Math.min(c.seen.size,items.length)} / ${items.length} 問　答えるたびに、相手と同じだったかがわかります。</p>`;
-  head.querySelector("h2").textContent=`🤝 ${c.name}さんと答えくらべ`;feed.appendChild(head);
+  head.querySelector("h2").textContent=`🤝 ${c.name}さんと答えくらべ${c.tag?`（${c.tag}編）`:""}`;feed.appendChild(head);
   if(!items.length){feed.insertAdjacentHTML("beforeend",'<div class="empty"><b>お題が見つかりませんでした</b><span class="sub">お題が消されたのかもしれません。</span></div>');feed.appendChild(exitBtn());return}
   const cur=items.find(x=>!c.seen.has(x.q.id));
   if(cur){
@@ -354,11 +380,11 @@ function renderCmp(feed){
     const h=document.createElement("p");h.className="f";h.textContent="ちがったお題";res.appendChild(h);res.appendChild(ul)}
   const row=document.createElement("div");row.className="share";
   const x=document.createElement("a");x.className="x";x.target="_blank";x.rel="noopener";
-  x.href="https://x.com/intent/post?text="+encodeURIComponent(`${c.name}さんとの答えくらべ、一致率${rate}%（${word}）でした！`)+"&url="+encodeURIComponent(BASE)+"&hashtags="+encodeURIComponent("みんなの〇択");
+  x.href="https://x.com/intent/post?text="+encodeURIComponent(`${c.name}さんとの答えくらべ${c.tag?`（${c.tag}編）`:""}、一致率${rate}%（${word}）でした！`)+"&url="+encodeURIComponent(BASE)+"&hashtags="+encodeURIComponent("みんなの〇択");
   x.textContent="結果をXでシェア";row.appendChild(x);res.appendChild(row);
   feed.appendChild(res);
   // 自分のリンクをつくって送り返す
-  const back=cmpMaker(st.questions.filter(q=>st.mine[q.id]!==undefined).length);back.querySelector("h2").textContent="🤝 こんどはあなたのリンクを送ろう";feed.appendChild(back);
+  const back=cmpMaker();back.querySelector("h2").textContent="🤝 こんどはあなたのリンクを送ろう";feed.appendChild(back);
   feed.appendChild(exitBtn());
 }
 function exitBtn(){const b=document.createElement("button");b.type="button";b.className="pill";b.textContent="ほかのお題も答える";

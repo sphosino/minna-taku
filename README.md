@@ -8,6 +8,10 @@
 
 答えたお題が5問以上になると、「🤝 友達と答えくらべ」でリンクをつくれます。答えたお題から最大10問（答えた人が多い順）の「お題ID.選んだ番号」と自分の名前がリンクに入ります（`?cn=名前&ca=ID.番号~ID.番号…`）。リンクを開いた人は同じお題に1問ずつ答え、答えるたびに相手と同じだったかが出て、最後に一致率と、答えがちがったお題の一覧が出ます。前に答えたことのあるお題は、その答えでくらべます。サーバーには何も足していません（答えはリンクの中だけ）。友達が答えた票は、ふつうの票として数えられます。
 
+## タグ
+
+お題には、決まった6個（食べもの・恋愛・人づきあい・もしも・暮らし・あそび）から1〜2個のタグがつきます。投稿のときに AI がチェックのついでにつけるので、投稿する人は選びません。一覧はタグでしぼりこめて、答えくらべは「恋愛編」のようにテーマを選べます（リンクに `ct=恋愛` が入る）。タグを増やすときは、Edge Function と `docs/index.html` の `TAGS` を両方直します。
+
 ## しくみ
 
 | 部分 | 使っているもの | 料金 |
@@ -62,6 +66,14 @@
 ## アップデートのしかた
 
 データベースの変更があるときは `supabase/migrations/` の新しいSQLを SQL Editor で実行してから、`supabase/functions/minna/index.ts` を Edge Function のエディタ（Code タブ）に貼り直してデプロイする。
+
+CLI（`npx supabase@2 login` 済み）なら、手元から次のようにできる。
+
+```
+npx supabase@2 link --project-ref bhnkfafrnrddtkdkwvso
+npx supabase@2 db query --linked -f supabase/migrations/003_tags.sql
+npx supabase@2 functions deploy minna --project-ref bhnkfafrnrddtkdkwvso --no-verify-jwt --use-api
+```
 
 ## AIチェックの基準を変える
 
