@@ -1,0 +1,7 @@
+{
+  "name": "minna-taku-tools",
+  "private": true,
+  "description": "みんなの〇択の手元で動かす道具（お題ごとのシェア用ページと画像）",
+  "scripts": { "cards": "node make-cards.js" },
+  "devDependencies": { "playwright-core": "^1.50.0" }
+}

@@ -210,6 +210,9 @@ st.cmp=(()=>{const q=new URLSearchParams(location.search),a=q.get("ca");if(!a)re
 const myName=()=>{try{return localStorage.getItem("mataasobo-name")||""}catch(e){return""}};
 const saveName=v=>{try{localStorage.setItem("mataasobo-name",v)}catch(e){}};
 const linkFor=id=>BASE+"?q="+encodeURIComponent(id);
+// シェアに使うリンク：お題の画像つきのページ（q/<id>.html、tools/make-cards.js で作る）があればそちら。X などでお題の画像が出る
+let cardIds=new Set();fetch("q/cards.json").then(r=>r.ok?r.json():{}).then(d=>{cardIds=new Set(Object.keys(d))}).catch(()=>{});
+const shareLinkFor=id=>cardIds.has(id)?BASE+"q/"+encodeURIComponent(id)+".html":linkFor(id);
 
 /* 匿名の投票者ID（ブラウザごと） */
 const voter=(()=>{const mk=()=>Array.from(crypto.getRandomValues(new Uint8Array(12)),b=>b.toString(16).padStart(2,"0")).join("");
@@ -392,7 +395,7 @@ function exitBtn(){const b=document.createElement("button");b.type="button";b.cl
 
 /* シェア */
 function shareRow(q,pick,pct,tag){
-  const url=linkFor(q.id);
+  const url=shareLinkFor(q.id);
   const msg=`「${q.text}」\n私は「${q.choices[pick]}」で${tag||"一番乗り"}${tag?`（${pct}%）`:""}でした。あなたは？`;
   const row=document.createElement("div");row.className="share";
   const x=document.createElement("a");x.className="x";x.target="_blank";x.rel="noopener";
